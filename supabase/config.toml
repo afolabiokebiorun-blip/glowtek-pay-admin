@@ -1,1 +1,28 @@
 project_id = "sgqiteaepdcirprkkchi"
+
+[functions.transactions-initialize]
+verify_jwt = true
+
+[functions.transactions-verify]
+verify_jwt = true
+
+[functions.transactions-list]
+verify_jwt = true
+
+[functions.api-keys-create]
+verify_jwt = true
+
+[functions.api-keys-list]
+verify_jwt = true
+
+[functions.wallet-balance]
+verify_jwt = true
+
+[functions.payouts-request]
+verify_jwt = true
+
+[functions.webhook-paystack]
+verify_jwt = false
+
+[functions.admin-merchants]
+verify_jwt = true
