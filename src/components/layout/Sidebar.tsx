@@ -13,7 +13,7 @@ export const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
       <div className="p-6 border-b border-sidebar-border">
-        <h1 className="text-2xl font-bold text-sidebar-foreground">Glowtek Pay</h1>
+        <h1 className="text-2xl font-bold text-sidebar-foreground">GlowPay</h1>
         <p className="text-xs text-sidebar-foreground/70 mt-1">Admin Dashboard</p>
       </div>
 
