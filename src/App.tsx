@@ -9,6 +9,7 @@ import Merchants from "./pages/Merchants";
 import MerchantDetails from "./pages/MerchantDetails";
 import Transactions from "./pages/Transactions";
 import Settings from "./pages/Settings";
+import ProcessorSettings from "./pages/ProcessorSettings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/merchants" element={<Merchants />} />
             <Route path="/merchants/:id" element={<MerchantDetails />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/processors" element={<ProcessorSettings />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />

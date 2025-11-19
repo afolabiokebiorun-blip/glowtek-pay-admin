@@ -167,6 +167,36 @@ export type Database = {
           },
         ]
       }
+      processor_credentials: {
+        Row: {
+          created_at: string | null
+          credentials: Json
+          id: string
+          is_active: boolean | null
+          merchant_id: string
+          processor: Database["public"]["Enums"]["payment_processor"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          credentials: Json
+          id?: string
+          is_active?: boolean | null
+          merchant_id: string
+          processor: Database["public"]["Enums"]["payment_processor"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          credentials?: Json
+          id?: string
+          is_active?: boolean | null
+          merchant_id?: string
+          processor?: Database["public"]["Enums"]["payment_processor"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
