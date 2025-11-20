@@ -10,6 +10,9 @@ import MerchantDetails from "./pages/MerchantDetails";
 import Transactions from "./pages/Transactions";
 import Settings from "./pages/Settings";
 import ProcessorSettings from "./pages/ProcessorSettings";
+import ApiKeys from "./pages/ApiKeys";
+import Webhooks from "./pages/Webhooks";
+import Payouts from "./pages/Payouts";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +32,9 @@ const App = () => (
             <Route path="/merchants/:id" element={<MerchantDetails />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/processors" element={<ProcessorSettings />} />
+            <Route path="/api-keys" element={<ApiKeys />} />
+            <Route path="/webhooks" element={<Webhooks />} />
+            <Route path="/payouts" element={<Payouts />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
