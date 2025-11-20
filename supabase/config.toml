@@ -32,3 +32,24 @@ verify_jwt = true
 
 [functions.processor-credentials-upsert]
 verify_jwt = true
+
+[functions.api-keys-rotate]
+verify_jwt = true
+
+[functions.api-keys-revoke]
+verify_jwt = true
+
+[functions.merchant-profile]
+verify_jwt = true
+
+[functions.payouts-list]
+verify_jwt = true
+
+[functions.webhook-monnify]
+verify_jwt = false
+
+[functions.webhook-chapa]
+verify_jwt = false
+
+[functions.admin-merchant-suspend]
+verify_jwt = true
