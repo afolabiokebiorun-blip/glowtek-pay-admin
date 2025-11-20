@@ -1,10 +1,13 @@
-import { LayoutDashboard, Users, CreditCard, Settings, Plug, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, Plug, Key, Webhook, Wallet, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Users, label: "Merchants", path: "/merchants" },
   { icon: CreditCard, label: "Transactions", path: "/transactions" },
+  { icon: Wallet, label: "Payouts", path: "/payouts" },
+  { icon: Key, label: "API Keys", path: "/api-keys" },
+  { icon: Webhook, label: "Webhooks", path: "/webhooks" },
   { icon: Plug, label: "Processors", path: "/processors" },
   { icon: Settings, label: "Site Content", path: "/settings" },
 ];
