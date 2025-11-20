@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 type ProcessorType =
   | "paystack"
@@ -83,6 +84,7 @@ const processorFields: Record<ProcessorType, { key: string; label: string; place
 
 export default function ProcessorSettings() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [configs, setConfigs] = useState<Record<ProcessorType, ProcessorConfig | null>>({
     paystack: null,
     monnify: null,
@@ -99,21 +101,31 @@ export default function ProcessorSettings() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Fetch processor credentials
+  // Check authentication and fetch processor credentials
   useEffect(() => {
-    async function load() {
+    async function checkAuthAndLoad() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      
+      setIsAuthenticated(true);
+      
       const { data, error } = await supabase.functions.invoke("processor-credentials-get");
       if (!error && data) {
         const map = { ...configs };
-        data.forEach((row: any) => {
+        data.data?.forEach((row: any) => {
           map[row.processor as ProcessorType] = row;
         });
         setConfigs(map);
       }
     }
-    load();
-  }, []);
+    checkAuthAndLoad();
+  }, [navigate]);
 
   async function saveConfig(processor: ProcessorType) {
     setLoading(true);
@@ -134,6 +146,10 @@ export default function ProcessorSettings() {
     } else {
       toast({ title: "Saved", description: `${processor} updated successfully.` });
     }
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
