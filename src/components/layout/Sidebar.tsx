@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CreditCard, Settings, Plug, Key, Webhook, Wallet, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, Plug, Key, Webhook, Wallet, LogOut, CircleDollarSign } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const menuItems = [
@@ -6,6 +6,7 @@ const menuItems = [
   { icon: Users, label: "Merchants", path: "/merchants" },
   { icon: CreditCard, label: "Transactions", path: "/transactions" },
   { icon: Wallet, label: "Payouts", path: "/payouts" },
+  { icon: CircleDollarSign, label: "GlowWallet", path: "/glowwallet" },
   { icon: Key, label: "API Keys", path: "/api-keys" },
   { icon: Webhook, label: "Webhooks", path: "/webhooks" },
   { icon: Plug, label: "Processors", path: "/processors" },
