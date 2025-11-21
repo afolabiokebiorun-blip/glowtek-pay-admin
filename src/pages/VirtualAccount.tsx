@@ -18,6 +18,7 @@ interface VirtualAccountData {
 interface MerchantData {
   bvn: string | null;
   business_name: string;
+  virtual_account_name: string | null;
 }
 
 export default function VirtualAccount() {
@@ -29,6 +30,7 @@ export default function VirtualAccount() {
   const [hasFlutterwaveConfig, setHasFlutterwaveConfig] = useState(false);
   const [merchant, setMerchant] = useState<MerchantData | null>(null);
   const [bvnInput, setBvnInput] = useState("");
+  const [businessNameInput, setBusinessNameInput] = useState("");
 
   useEffect(() => {
     checkAuth();
@@ -52,7 +54,7 @@ export default function VirtualAccount() {
 
       const { data, error } = await supabase
         .from('merchants')
-        .select('bvn, business_name')
+        .select('bvn, business_name, virtual_account_name')
         .eq('id', user.id)
         .single();
 
@@ -60,6 +62,7 @@ export default function VirtualAccount() {
       if (data) {
         setMerchant(data);
         setBvnInput(data.bvn || "");
+        setBusinessNameInput(data.virtual_account_name || data.business_name || "");
       }
     } catch (error: any) {
       console.error('Error loading merchant data:', error);
@@ -72,6 +75,16 @@ export default function VirtualAccount() {
       return;
     }
 
+    if (!businessNameInput || businessNameInput.trim().length < 3) {
+      toast.error("Please enter a business name (at least 3 characters)");
+      return;
+    }
+
+    if (businessNameInput.trim().length > 50) {
+      toast.error("Business name must be less than 50 characters");
+      return;
+    }
+
     setSavingBvn(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -79,16 +92,23 @@ export default function VirtualAccount() {
 
       const { error } = await supabase
         .from('merchants')
-        .update({ bvn: bvnInput.trim() })
+        .update({ 
+          bvn: bvnInput.trim(),
+          virtual_account_name: businessNameInput.trim()
+        })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      setMerchant({ ...merchant!, bvn: bvnInput.trim() });
-      toast.success("BVN saved successfully!");
+      setMerchant({ 
+        ...merchant!, 
+        bvn: bvnInput.trim(),
+        virtual_account_name: businessNameInput.trim()
+      });
+      toast.success("Details saved successfully!");
     } catch (error: any) {
-      console.error('Error saving BVN:', error);
-      toast.error(error.message || "Failed to save BVN");
+      console.error('Error saving details:', error);
+      toast.error(error.message || "Failed to save details");
     } finally {
       setSavingBvn(false);
     }
@@ -218,7 +238,7 @@ export default function VirtualAccount() {
           <Card>
             <CardHeader>
               <CardTitle>Virtual Account Setup</CardTitle>
-              <CardDescription>Enter your BVN to create a virtual account</CardDescription>
+              <CardDescription>Enter your details to create a virtual account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -227,6 +247,21 @@ export default function VirtualAccount() {
                 </p>
               </div>
               
+              <div className="space-y-2">
+                <Label htmlFor="businessName">Business Name (as it will appear on account)</Label>
+                <Input
+                  id="businessName"
+                  type="text"
+                  placeholder="Enter your business name"
+                  value={businessNameInput}
+                  onChange={(e) => setBusinessNameInput(e.target.value.slice(0, 50))}
+                  maxLength={50}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This name will appear on your virtual account (e.g., "Your Business Name FLW").
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="bvn">Bank Verification Number (BVN)</Label>
                 <Input
@@ -244,7 +279,7 @@ export default function VirtualAccount() {
 
               <Button 
                 onClick={saveBvn} 
-                disabled={savingBvn || bvnInput.length !== 11}
+                disabled={savingBvn || bvnInput.length !== 11 || businessNameInput.trim().length < 3}
                 className="w-full"
               >
                 {savingBvn ? (
@@ -253,7 +288,7 @@ export default function VirtualAccount() {
                     Saving...
                   </>
                 ) : (
-                  "Save BVN & Continue"
+                  "Save & Continue"
                 )}
               </Button>
             </CardContent>
