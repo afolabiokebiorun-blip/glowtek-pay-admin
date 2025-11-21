@@ -166,26 +166,30 @@ export default function ProcessorSettings() {
             <h2 className="text-xl font-bold capitalize mb-4">{processor}</h2>
 
             {fields.map((field) => (
-              <input
-                key={field.key}
-                type="text"
-                placeholder={field.placeholder}
-                className="w-full border p-3 rounded mb-3"
-                value={config.credentials[field.key] || ""}
-                onChange={(e) =>
-                  setConfigs({
-                    ...configs,
-                    [processor]: {
-                      processor,
-                      is_active: true,
-                      credentials: {
-                        ...config.credentials,
-                        [field.key]: e.target.value,
+              <div key={field.key} className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {field.label}
+                </label>
+                <input
+                  type="text"
+                  placeholder={field.placeholder}
+                  className="w-full border p-3 rounded"
+                  value={config.credentials[field.key] || ""}
+                  onChange={(e) =>
+                    setConfigs({
+                      ...configs,
+                      [processor]: {
+                        processor,
+                        is_active: true,
+                        credentials: {
+                          ...config.credentials,
+                          [field.key]: e.target.value,
+                        },
                       },
-                    },
-                  })
-                }
-              />
+                    })
+                  }
+                />
+              </div>
             ))}
 
             <button
