@@ -1,29 +1,116 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Filter } from "lucide-react";
-import { Line, LineChart, ResponsiveContainer } from "recharts";
+import { Search, Download, Filter, TrendingUp, TrendingDown, ArrowDownToLine } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
-const transactions = [
-  { id: "TXN001", merchant: "TechCorp Solutions", amount: "$2,400", status: "completed", date: "2024-01-15", time: "10:30 AM", trend: [40, 55, 45, 60, 50, 70, 65] },
-  { id: "TXN002", merchant: "Digital Ventures", amount: "$1,800", status: "completed", date: "2024-01-15", time: "09:15 AM", trend: [30, 40, 35, 50, 45, 55, 60] },
-  { id: "TXN003", merchant: "Global Traders", amount: "$5,200", status: "pending", date: "2024-01-15", time: "08:45 AM", trend: [50, 65, 60, 75, 70, 85, 80] },
-  { id: "TXN004", merchant: "Smart Retail", amount: "$980", status: "completed", date: "2024-01-14", time: "04:20 PM", trend: [20, 25, 30, 28, 35, 32, 40] },
-  { id: "TXN005", merchant: "Eco Markets", amount: "$3,150", status: "completed", date: "2024-01-14", time: "02:30 PM", trend: [45, 50, 48, 55, 60, 58, 65] },
-  { id: "TXN006", merchant: "Urban Store", amount: "$1,450", status: "failed", date: "2024-01-14", time: "01:15 PM", trend: [35, 30, 32, 28, 30, 25, 20] },
-  { id: "TXN007", merchant: "Fashion Hub", amount: "$2,890", status: "completed", date: "2024-01-14", time: "11:00 AM", trend: [40, 45, 50, 48, 55, 52, 60] },
-  { id: "TXN008", merchant: "Prime Goods", amount: "$720", status: "completed", date: "2024-01-13", time: "05:45 PM", trend: [15, 20, 18, 25, 22, 28, 30] },
-];
+interface LedgerEntry {
+  id: string;
+  entry_type: string;
+  amount: number;
+  reference: string;
+  created_at: string;
+  metadata: any;
+}
 
 export default function Transactions() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
 
-  const filteredTransactions = transactions.filter(
-    (txn) =>
-      txn.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.merchant.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    async function loadTransactions() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('ledger_entries')
+          .select('*')
+          .eq('merchant_id', session.user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        setLedgerEntries(data || []);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load transactions",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadTransactions();
+  }, [navigate, toast]);
+
+  const filteredTransactions = ledgerEntries.filter(
+    (entry) =>
+      entry.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.entry_type.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+    }).format(amount / 100);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getTypeIcon = (type: string) => {
+    if (type === 'CREDIT') return <TrendingUp className="h-5 w-5 text-green-600" />;
+    if (type === 'DEBIT' || type === 'WITHDRAWAL') return <ArrowDownToLine className="h-5 w-5 text-orange-600" />;
+    if (type === 'REVERSAL') return <TrendingUp className="h-5 w-5 text-blue-600" />;
+    return <TrendingDown className="h-5 w-5 text-muted-foreground" />;
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'CREDIT': return 'Credit';
+      case 'DEBIT': return 'Debit';
+      case 'WITHDRAWAL': return 'Withdrawal';
+      case 'REVERSAL': return 'Reversal';
+      default: return type;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold text-foreground">Transactions</h1>
+        <p>Loading transactions...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -59,62 +146,45 @@ export default function Transactions() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Transaction ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Merchant</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Amount</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Date</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Time</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trend</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.map((txn) => (
-                  <tr key={txn.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                    <td className="py-4 px-4">
-                      <p className="font-medium text-foreground">{txn.id}</p>
-                    </td>
-                    <td className="py-4 px-4 text-muted-foreground">{txn.merchant}</td>
-                    <td className="py-4 px-4 font-semibold text-foreground">{txn.amount}</td>
-                    <td className="py-4 px-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          txn.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : txn.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {txn.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-muted-foreground">{txn.date}</td>
-                    <td className="py-4 px-4 text-muted-foreground">{txn.time}</td>
-                    <td className="py-4 px-4">
-                      <div className="w-24 h-8">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={txn.trend.map((value, index) => ({ value, index }))}>
-                            <Line
-                              type="monotone"
-                              dataKey="value"
-                              stroke="hsl(var(--primary-light))"
-                              strokeWidth={2}
-                              dot={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {filteredTransactions.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">No transactions found</p>
+          ) : (
+            <div className="space-y-3">
+              {filteredTransactions.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                      {getTypeIcon(entry.entry_type)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {getTypeLabel(entry.entry_type)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {entry.reference}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(entry.created_at)} • {formatTime(entry.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <p
+                    className={`text-lg font-semibold ${
+                      entry.entry_type === 'CREDIT' || entry.entry_type === 'REVERSAL'
+                        ? "text-green-600"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {entry.entry_type === 'CREDIT' || entry.entry_type === 'REVERSAL' ? "+" : "-"}
+                    {formatAmount(Math.abs(entry.amount))}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

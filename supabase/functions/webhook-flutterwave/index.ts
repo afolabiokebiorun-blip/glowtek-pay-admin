@@ -35,7 +35,60 @@ serve(async (req) => {
         });
       }
 
-      // Find transaction by reference
+      // Check if it's a wallet top-up
+      if (txRef.startsWith('TOPUP_')) {
+        console.log('Processing wallet top-up:', txRef);
+        
+        // Extract merchant ID from reference (format: TOPUP_{merchantId}_{timestamp})
+        const merchantIdMatch = txRef.match(/TOPUP_([a-f0-9-]+)_/);
+        if (!merchantIdMatch) {
+          console.error('Invalid top-up reference format:', txRef);
+          return new Response(JSON.stringify({ status: 'invalid_reference' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const merchantId = merchantIdMatch[1];
+        const amountInKobo = Math.round(amount * 100);
+
+        // Create CREDIT ledger entry for top-up
+        await supabase
+          .from('ledger_entries')
+          .insert({
+            merchant_id: merchantId,
+            entry_type: 'CREDIT',
+            amount: amountInKobo,
+            reference: txRef,
+            metadata: {
+              type: 'wallet_topup',
+              flw_ref: payload.data.flw_ref,
+            },
+          });
+
+        // Update wallet balance
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('available_balance, balance')
+          .eq('merchant_id', merchantId)
+          .single();
+
+        if (wallet) {
+          await supabase
+            .from('wallets')
+            .update({
+              balance: (wallet.balance || 0) + amountInKobo,
+              available_balance: (wallet.available_balance || 0) + amountInKobo,
+            })
+            .eq('merchant_id', merchantId);
+        }
+
+        console.log('Wallet top-up processed successfully');
+        return new Response(JSON.stringify({ status: 'success' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Handle regular transaction
       const { data: transaction, error: txError } = await supabase
         .from('transactions')
         .select('*, merchants(*)')
