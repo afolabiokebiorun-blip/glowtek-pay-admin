@@ -32,7 +32,7 @@ serve(async (req) => {
     // Get merchant details
     const { data: merchant, error: merchantError } = await supabase
       .from('merchants')
-      .select('*')
+      .select('id, email, business_name, bvn, virtual_account_name')
       .eq('id', user.id)
       .single();
 
@@ -81,6 +81,9 @@ serve(async (req) => {
       throw new Error('BVN is required to create a virtual account. Please update your profile with your BVN first.');
     }
 
+    // Get the business name to use (custom name or default business_name)
+    const accountName = merchant.virtual_account_name?.trim() || merchant.business_name;
+
     // Create Virtual Account directly
     const virtualAccountResponse = await fetch('https://api.flutterwave.com/v3/virtual-account-numbers', {
       method: 'POST',
@@ -93,7 +96,7 @@ serve(async (req) => {
         is_permanent: true,
         bvn: merchant.bvn,
         tx_ref: `va_${user.id}_${Date.now()}`,
-        narration: `${merchant.business_name} FLW`,
+        narration: `${accountName} FLW`,
       }),
     });
 
