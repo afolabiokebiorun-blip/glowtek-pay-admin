@@ -165,10 +165,29 @@ export default function VirtualAccount() {
       return;
     }
 
+    const trimmedName = businessNameInput.trim();
+
+    if (!trimmedName || trimmedName.length < 3) {
+      toast.error("Please enter a business name (at least 3 characters)");
+      return;
+    }
+
+    if (trimmedName.length > 50) {
+      toast.error("Business name must be less than 50 characters");
+      return;
+    }
+
     setCreating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error: updateError } = await supabase
+        .from('merchants')
+        .update({ virtual_account_name: trimmedName })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
 
       const { data, error } = await supabase.functions.invoke('virtual-account-create', {});
 
@@ -305,21 +324,41 @@ export default function VirtualAccount() {
             <CardTitle>Virtual Account</CardTitle>
             <CardDescription>Create your dedicated virtual account for receiving payments</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">
-                You don't have a virtual account yet. Create one to start receiving payments.
-              </p>
-              <Button onClick={createVirtualAccount} disabled={creating}>
-                {creating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Virtual Account"
-                )}
-              </Button>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2 text-left">
+                <Label htmlFor="businessName">Business Name (as it will appear on account)</Label>
+                <Input
+                  id="businessName"
+                  type="text"
+                  placeholder="Enter your business name"
+                  value={businessNameInput}
+                  onChange={(e) => setBusinessNameInput(e.target.value.slice(0, 50))}
+                  maxLength={50}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This name will appear on your virtual account statement. You can change it before creating the account.
+                </p>
+              </div>
+
+              <div className="text-center pt-4">
+                <p className="text-muted-foreground mb-4">
+                  You don't have a virtual account yet. Create one to start receiving payments.
+                </p>
+                <Button
+                  onClick={createVirtualAccount}
+                  disabled={creating || businessNameInput.trim().length < 3}
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Virtual Account"
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
