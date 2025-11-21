@@ -90,6 +90,12 @@ serve(async (req) => {
       }),
     });
 
+    if (!customerResponse.ok) {
+      const errorText = await customerResponse.text();
+      console.error('Flutterwave customer creation failed:', errorText);
+      throw new Error(`Flutterwave API error: ${customerResponse.status} - ${errorText}`);
+    }
+
     const customerData = await customerResponse.json();
     console.log('Customer creation response:', customerData);
 
@@ -114,6 +120,12 @@ serve(async (req) => {
         narration: merchant.business_name,
       }),
     });
+
+    if (!virtualAccountResponse.ok) {
+      const errorText = await virtualAccountResponse.text();
+      console.error('Flutterwave virtual account creation failed:', errorText);
+      throw new Error(`Flutterwave API error: ${virtualAccountResponse.status} - ${errorText}`);
+    }
 
     const virtualAccountData = await virtualAccountResponse.json();
     console.log('Virtual account creation response:', virtualAccountData);
