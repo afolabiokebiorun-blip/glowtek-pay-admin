@@ -36,7 +36,11 @@ serve(async (req) => {
     }
 
     // Validate processor
-    const validProcessors = ['paystack', 'monnify', 'chapa'];
+    const validProcessors = [
+      'paystack', 'monnify', 'chapa', 'flutterwave', 'stripe', 
+      'paypal', 'wise', 'coinbase', 'nowpayments', 'bitpay', 
+      'coinpayments', 'binancepay'
+    ];
     if (!validProcessors.includes(processor)) {
       throw new Error('Invalid processor');
     }
