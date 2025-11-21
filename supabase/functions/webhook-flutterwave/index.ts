@@ -27,6 +27,7 @@ serve(async (req) => {
       const txRef = payload.data.tx_ref;
       const amount = payload.data.amount;
       const status = payload.data.status;
+      const paymentType = payload.data.payment_type;
       
       if (status !== 'successful') {
         console.log('Payment not successful, skipping');
@@ -35,8 +36,78 @@ serve(async (req) => {
         });
       }
 
+      // Check if it's a virtual account payment
+      if (paymentType === 'bank_transfer' || paymentType === 'banktransfer') {
+        console.log('Processing virtual account payment');
+        
+        const accountNumber = payload.data.account_number || payload.data.payment_account_number;
+        
+        if (!accountNumber) {
+          console.error('No account number in virtual account payment');
+          return new Response(JSON.stringify({ status: 'missing_account_number' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Look up virtual account
+        const { data: virtualAccount, error: vaError } = await supabase
+          .from('virtual_accounts')
+          .select('merchant_id')
+          .eq('account_number', accountNumber)
+          .maybeSingle();
+
+        if (vaError || !virtualAccount) {
+          console.error('Virtual account not found:', accountNumber);
+          return new Response(JSON.stringify({ status: 'virtual_account_not_found' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const merchantId = virtualAccount.merchant_id;
+        const amountInKobo = Math.round(amount * 100);
+        const reference = payload.data.flw_ref || payload.data.id?.toString() || `VA_${Date.now()}`;
+
+        // Create CREDIT ledger entry for virtual account payment
+        await supabase
+          .from('ledger_entries')
+          .insert({
+            merchant_id: merchantId,
+            entry_type: 'CREDIT',
+            amount: amountInKobo,
+            reference: reference,
+            metadata: {
+              type: 'virtual_account_payment',
+              flw_ref: payload.data.flw_ref,
+              account_number: accountNumber,
+              customer_name: payload.data.customer?.name,
+            },
+          });
+
+        // Update wallet balance
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('available_balance, balance')
+          .eq('merchant_id', merchantId)
+          .single();
+
+        if (wallet) {
+          await supabase
+            .from('wallets')
+            .update({
+              balance: (wallet.balance || 0) + amountInKobo,
+              available_balance: (wallet.available_balance || 0) + amountInKobo,
+            })
+            .eq('merchant_id', merchantId);
+        }
+
+        console.log('Virtual account payment processed successfully');
+        return new Response(JSON.stringify({ status: 'success' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       // Check if it's a wallet top-up
-      if (txRef.startsWith('TOPUP_')) {
+      if (txRef && txRef.startsWith('TOPUP_')) {
         console.log('Processing wallet top-up:', txRef);
         
         // Extract merchant ID from reference (format: TOPUP_{merchantId}_{timestamp})
