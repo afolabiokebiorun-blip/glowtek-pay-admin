@@ -32,14 +32,9 @@ serve(async (req) => {
     const payload = await req.json();
     
     // Verify the signature matches
-    const encoder = new TextEncoder();
-    const data = encoder.encode(JSON.stringify(payload));
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    if (computedHash !== verifHash) {
-      console.error('Webhook signature verification failed');
+    // Verify the secret hash matches the expected webhook secret
+    if (verifHash !== webhookSecret) {
+      console.error('Webhook signature verification failed: hash mismatch');
       return new Response(JSON.stringify({ error: 'Invalid signature' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
