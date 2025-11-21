@@ -93,35 +93,88 @@ export type Database = {
           },
         ]
       }
+      ledger_entries: {
+        Row: {
+          amount: number
+          created_at: string | null
+          entry_type: string
+          id: string
+          merchant_id: string
+          metadata: Json | null
+          reference: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          entry_type: string
+          id?: string
+          merchant_id: string
+          metadata?: Json | null
+          reference: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          entry_type?: string
+          id?: string
+          merchant_id?: string
+          metadata?: Json | null
+          reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       merchants: {
         Row: {
+          account_number: string | null
+          bank_code: string | null
+          bank_name: string | null
           business_name: string
           created_at: string | null
           email: string
+          flw_customer_id: string | null
           id: string
           is_suspended: boolean | null
           is_verified: boolean | null
           phone: string | null
+          resolved_account_name: string | null
           updated_at: string | null
         }
         Insert: {
+          account_number?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
           business_name: string
           created_at?: string | null
           email: string
+          flw_customer_id?: string | null
           id: string
           is_suspended?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
+          resolved_account_name?: string | null
           updated_at?: string | null
         }
         Update: {
+          account_number?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
           business_name?: string
           created_at?: string | null
           email?: string
+          flw_customer_id?: string | null
           id?: string
           is_suspended?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
+          resolved_account_name?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -271,29 +324,76 @@ export type Database = {
         }
         Relationships: []
       }
+      virtual_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at: string | null
+          flw_customer_id: string | null
+          id: string
+          merchant_id: string
+          order_ref: string | null
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at?: string | null
+          flw_customer_id?: string | null
+          id?: string
+          merchant_id: string
+          order_ref?: string | null
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string | null
+          flw_customer_id?: string | null
+          id?: string
+          merchant_id?: string
+          order_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_accounts_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
+          available_balance: number | null
           balance: number | null
           created_at: string | null
           currency: Database["public"]["Enums"]["currency_code"] | null
           id: string
           merchant_id: string
+          pending_balance: number | null
           updated_at: string | null
         }
         Insert: {
+          available_balance?: number | null
           balance?: number | null
           created_at?: string | null
           currency?: Database["public"]["Enums"]["currency_code"] | null
           id?: string
           merchant_id: string
+          pending_balance?: number | null
           updated_at?: string | null
         }
         Update: {
+          available_balance?: number | null
           balance?: number | null
           created_at?: string | null
           currency?: Database["public"]["Enums"]["currency_code"] | null
           id?: string
           merchant_id?: string
+          pending_balance?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -334,6 +434,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "webhook_endpoints_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      withdrawals: {
+        Row: {
+          amount: number
+          created_at: string | null
+          flw_transfer_id: string | null
+          id: string
+          merchant_id: string
+          reference: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          flw_transfer_id?: string | null
+          id?: string
+          merchant_id: string
+          reference: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          flw_transfer_id?: string | null
+          id?: string
+          merchant_id?: string
+          reference?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawals_merchant_id_fkey"
             columns: ["merchant_id"]
             isOneToOne: false
             referencedRelation: "merchants"
