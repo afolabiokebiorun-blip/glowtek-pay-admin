@@ -357,7 +357,19 @@ export type Database = {
     Enums: {
       app_role: "admin" | "merchant"
       currency_code: "NGN" | "USD" | "GHS" | "KES" | "ZAR"
-      payment_processor: "paystack" | "monnify" | "chapa"
+      payment_processor:
+        | "paystack"
+        | "monnify"
+        | "chapa"
+        | "flutterwave"
+        | "stripe"
+        | "paypal"
+        | "wise"
+        | "coinbase"
+        | "nowpayments"
+        | "bitpay"
+        | "coinpayments"
+        | "binancepay"
       payout_status: "pending" | "sent" | "failed"
       transaction_status: "pending" | "success" | "failed" | "processing"
     }
@@ -489,7 +501,20 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "merchant"],
       currency_code: ["NGN", "USD", "GHS", "KES", "ZAR"],
-      payment_processor: ["paystack", "monnify", "chapa"],
+      payment_processor: [
+        "paystack",
+        "monnify",
+        "chapa",
+        "flutterwave",
+        "stripe",
+        "paypal",
+        "wise",
+        "coinbase",
+        "nowpayments",
+        "bitpay",
+        "coinpayments",
+        "binancepay",
+      ],
       payout_status: ["pending", "sent", "failed"],
       transaction_status: ["pending", "success", "failed", "processing"],
     },
