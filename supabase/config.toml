@@ -53,3 +53,12 @@ verify_jwt = false
 
 [functions.admin-merchant-suspend]
 verify_jwt = true
+
+[functions.wallet-topup-initialize]
+verify_jwt = true
+
+[functions.withdrawal-request]
+verify_jwt = true
+
+[functions.webhook-flutterwave]
+verify_jwt = false
