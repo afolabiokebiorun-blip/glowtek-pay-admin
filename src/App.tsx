@@ -16,6 +16,8 @@ import Payouts from "./pages/Payouts";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import GlowWallet from "./pages/GlowWallet";
+import BankSetup from "./pages/BankSetup";
+import VirtualAccount from "./pages/VirtualAccount";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ const App = () => (
             <Route path="/webhooks" element={<Webhooks />} />
             <Route path="/payouts" element={<Payouts />} />
             <Route path="/glowwallet" element={<GlowWallet />} />
+            <Route path="/bank-setup" element={<BankSetup />} />
+            <Route path="/virtual-account" element={<VirtualAccount />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
