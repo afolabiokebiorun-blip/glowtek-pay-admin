@@ -137,6 +137,7 @@ export type Database = {
           bank_code: string | null
           bank_name: string | null
           business_name: string
+          bvn: string | null
           created_at: string | null
           email: string
           flw_customer_id: string | null
@@ -152,6 +153,7 @@ export type Database = {
           bank_code?: string | null
           bank_name?: string | null
           business_name: string
+          bvn?: string | null
           created_at?: string | null
           email: string
           flw_customer_id?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           bank_code?: string | null
           bank_name?: string | null
           business_name?: string
+          bvn?: string | null
           created_at?: string | null
           email?: string
           flw_customer_id?: string | null
