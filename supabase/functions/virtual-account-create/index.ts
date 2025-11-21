@@ -96,7 +96,7 @@ serve(async (req) => {
         is_permanent: true,
         bvn: merchant.bvn,
         tx_ref: `va_${user.id}_${Date.now()}`,
-        narration: `${accountName} FLW`,
+        narration: accountName,
       }),
     });
 
@@ -122,7 +122,7 @@ serve(async (req) => {
         merchant_id: user.id,
         account_number: vaData.account_number,
         bank_name: vaData.bank_name,
-        account_name: vaData.note || `${merchant.business_name} FLW`,
+        account_name: vaData.note || accountName,
         order_ref: vaData.order_ref || vaData.flw_ref,
       })
       .select()
