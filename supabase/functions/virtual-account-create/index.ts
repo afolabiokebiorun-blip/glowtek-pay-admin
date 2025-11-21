@@ -76,6 +76,11 @@ serve(async (req) => {
       throw new Error('Flutterwave secret key not found');
     }
 
+    // Check if merchant has BVN
+    if (!merchant.bvn || merchant.bvn.trim() === '') {
+      throw new Error('BVN is required to create a virtual account. Please update your profile with your BVN first.');
+    }
+
     // Create Virtual Account directly
     const virtualAccountResponse = await fetch('https://api.flutterwave.com/v3/virtual-account-numbers', {
       method: 'POST',
@@ -86,6 +91,7 @@ serve(async (req) => {
       body: JSON.stringify({
         email: merchant.email,
         is_permanent: true,
+        bvn: merchant.bvn,
         tx_ref: `va_${user.id}_${Date.now()}`,
         narration: `${merchant.business_name} FLW`,
       }),

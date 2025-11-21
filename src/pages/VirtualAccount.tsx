@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Copy, Loader2, AlertCircle } from "lucide-react";
 
@@ -13,12 +15,20 @@ interface VirtualAccountData {
   order_ref: string;
 }
 
+interface MerchantData {
+  bvn: string | null;
+  business_name: string;
+}
+
 export default function VirtualAccount() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [savingBvn, setSavingBvn] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccountData | null>(null);
   const [hasFlutterwaveConfig, setHasFlutterwaveConfig] = useState(false);
+  const [merchant, setMerchant] = useState<MerchantData | null>(null);
+  const [bvnInput, setBvnInput] = useState("");
 
   useEffect(() => {
     checkAuth();
@@ -31,7 +41,57 @@ export default function VirtualAccount() {
       return;
     }
     await checkFlutterwaveConfig();
+    await loadMerchantData();
     await loadVirtualAccount();
+  };
+
+  const loadMerchantData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('merchants')
+        .select('bvn, business_name')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setMerchant(data);
+        setBvnInput(data.bvn || "");
+      }
+    } catch (error: any) {
+      console.error('Error loading merchant data:', error);
+    }
+  };
+
+  const saveBvn = async () => {
+    if (!bvnInput || bvnInput.trim().length !== 11) {
+      toast.error("Please enter a valid 11-digit BVN");
+      return;
+    }
+
+    setSavingBvn(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('merchants')
+        .update({ bvn: bvnInput.trim() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setMerchant({ ...merchant!, bvn: bvnInput.trim() });
+      toast.success("BVN saved successfully!");
+    } catch (error: any) {
+      console.error('Error saving BVN:', error);
+      toast.error(error.message || "Failed to save BVN");
+    } finally {
+      setSavingBvn(false);
+    }
   };
 
   const checkFlutterwaveConfig = async () => {
@@ -151,6 +211,58 @@ export default function VirtualAccount() {
   }
 
   if (!virtualAccount) {
+    // Show BVN input if not saved
+    if (!merchant?.bvn) {
+      return (
+        <div className="container max-w-2xl py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Virtual Account Setup</CardTitle>
+              <CardDescription>Enter your BVN to create a virtual account</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-900">
+                  <strong>Note:</strong> Your Bank Verification Number (BVN) is required by Flutterwave to create a permanent virtual account for receiving payments.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="bvn">Bank Verification Number (BVN)</Label>
+                <Input
+                  id="bvn"
+                  type="text"
+                  placeholder="Enter your 11-digit BVN"
+                  value={bvnInput}
+                  onChange={(e) => setBvnInput(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  maxLength={11}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your BVN is kept secure and only used for virtual account creation.
+                </p>
+              </div>
+
+              <Button 
+                onClick={saveBvn} 
+                disabled={savingBvn || bvnInput.length !== 11}
+                className="w-full"
+              >
+                {savingBvn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save BVN & Continue"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Show create virtual account button if BVN is saved
     return (
       <div className="container max-w-2xl py-8">
         <Card>
