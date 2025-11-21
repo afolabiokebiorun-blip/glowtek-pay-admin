@@ -76,36 +76,7 @@ serve(async (req) => {
       throw new Error('Flutterwave secret key not found');
     }
 
-    // Step 1: Create Flutterwave Customer
-    const customerResponse = await fetch('https://api.flutterwave.com/v3/customers', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${flwSecretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: merchant.email,
-        name: merchant.business_name,
-        phone_number: merchant.phone || '',
-      }),
-    });
-
-    if (!customerResponse.ok) {
-      const errorText = await customerResponse.text();
-      console.error('Flutterwave customer creation failed:', errorText);
-      throw new Error(`Flutterwave API error: ${customerResponse.status} - ${errorText}`);
-    }
-
-    const customerData = await customerResponse.json();
-    console.log('Customer creation response:', customerData);
-
-    if (customerData.status !== 'success') {
-      throw new Error(`Failed to create customer: ${customerData.message}`);
-    }
-
-    const flw_customer_id = customerData.data.id;
-
-    // Step 2: Create Virtual Account
+    // Create Virtual Account directly
     const virtualAccountResponse = await fetch('https://api.flutterwave.com/v3/virtual-account-numbers', {
       method: 'POST',
       headers: {
@@ -115,9 +86,8 @@ serve(async (req) => {
       body: JSON.stringify({
         email: merchant.email,
         is_permanent: true,
-        bvn: '', // Optional
         tx_ref: `va_${user.id}_${Date.now()}`,
-        narration: merchant.business_name,
+        narration: `${merchant.business_name} FLW`,
       }),
     });
 
@@ -136,16 +106,15 @@ serve(async (req) => {
 
     const vaData = virtualAccountData.data;
 
-    // Step 3: Save to database
+    // Save to database
     const { data: virtualAccount, error: insertError } = await supabase
       .from('virtual_accounts')
       .insert({
         merchant_id: user.id,
         account_number: vaData.account_number,
         bank_name: vaData.bank_name,
-        account_name: `${merchant.business_name} FLW`,
+        account_name: vaData.note || `${merchant.business_name} FLW`,
         order_ref: vaData.order_ref || vaData.flw_ref,
-        flw_customer_id: flw_customer_id.toString(),
       })
       .select()
       .single();
@@ -154,12 +123,6 @@ serve(async (req) => {
       console.error('Database insert error:', insertError);
       throw new Error('Failed to save virtual account');
     }
-
-    // Update merchant with flw_customer_id
-    await supabase
-      .from('merchants')
-      .update({ flw_customer_id: flw_customer_id.toString() })
-      .eq('id', user.id);
 
     return new Response(
       JSON.stringify({
