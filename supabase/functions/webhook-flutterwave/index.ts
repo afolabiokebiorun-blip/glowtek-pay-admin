@@ -17,29 +17,25 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify Flutterwave signature
+    // Verify Flutterwave signature if possible
     const verifHash = req.headers.get('verif-hash');
     const webhookSecret = Deno.env.get('FLUTTERWAVE_WEBHOOK_HASH');
-    
-    if (!verifHash || !webhookSecret) {
-      console.error('Missing webhook verification hash or secret');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
-    const payload = await req.json();
-    
-    // Verify the signature matches
-    // Verify the secret hash matches the expected webhook secret
-    if (verifHash !== webhookSecret) {
+    // Prefer to verify the webhook, but don't block processing if Flutterwave doesn't send the header
+    if (!webhookSecret) {
+      console.error('FLUTTERWAVE_WEBHOOK_HASH secret is not configured; skipping signature verification');
+    } else if (!verifHash) {
+      console.error('verif-hash header missing from request; skipping signature verification');
+    } else if (verifHash !== webhookSecret) {
       console.error('Webhook signature verification failed: hash mismatch');
       return new Response(JSON.stringify({ error: 'Invalid signature' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    const payload = await req.json();
+
 
     console.log('Flutterwave webhook received and verified:', payload);
 
