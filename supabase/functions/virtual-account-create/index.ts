@@ -48,7 +48,7 @@ serve(async (req) => {
     // Get merchant details
     const { data: merchant, error: merchantError } = await supabase
       .from('merchants')
-      .select('id, email, business_name, bvn, virtual_account_name')
+      .select('id, email, phone, business_name, bvn, virtual_account_name')
       .eq('id', user.id)
       .single();
 
@@ -98,6 +98,11 @@ serve(async (req) => {
       throw new Error('BVN is required to create a NGN virtual account. Please update your profile with your BVN first.');
     }
 
+    // Phone number is required for non-NGN accounts
+    if (currency !== 'NGN' && (!merchant.phone || merchant.phone.trim() === '')) {
+      throw new Error('Phone number is required to create foreign currency virtual accounts. Please update your profile with your phone number first.');
+    }
+
     // Get the business name to use
     const accountName = merchant.virtual_account_name?.trim() || merchant.business_name;
 
@@ -122,7 +127,8 @@ serve(async (req) => {
       apiUrl = 'https://api.flutterwave.com/v3/payout-subaccounts';
       requestBody.country = getCurrencyCountry(currency);
       requestBody.account_name = accountName;
-      requestBody.mobilenumber = merchant.email; // Use email as identifier
+      // Extract digits only from phone number
+      requestBody.mobilenumber = merchant.phone?.replace(/\D/g, '') || '';
       delete requestBody.narration;
       delete requestBody.is_permanent;
       delete requestBody.tx_ref;
