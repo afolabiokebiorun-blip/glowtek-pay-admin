@@ -1,5 +1,6 @@
 import { LayoutDashboard, Users, CreditCard, Settings, Plug, Key, Webhook, Wallet, LogOut, CircleDollarSign, Building2, Landmark } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
@@ -16,11 +17,20 @@ const menuItems = [
 ];
 
 export const Sidebar = () => {
+  const { settings } = useSiteSettings();
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-      <div className="p-6 border-b border-sidebar-border">
-        <h1 className="text-2xl font-bold text-sidebar-foreground">GlowPay</h1>
-        <p className="text-xs text-sidebar-foreground/70 mt-1">Admin Dashboard</p>
+      <div className="p-6 border-b border-sidebar-border flex items-center gap-3">
+        {settings.logoUrl && (
+          <div className="w-10 h-10 rounded-lg bg-sidebar-foreground/10 p-1.5 flex-shrink-0">
+            <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+          </div>
+        )}
+        <div>
+          <h1 className="text-xl font-bold text-sidebar-foreground">{settings.brandName}</h1>
+          <p className="text-xs text-sidebar-foreground/70">Admin Dashboard</p>
+        </div>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">

@@ -256,6 +256,44 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          brand_name: string
+          created_at: string
+          id: string
+          logo_url: string | null
+          merchant_id: string
+          primary_color: string
+          updated_at: string
+        }
+        Insert: {
+          brand_name?: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          merchant_id: string
+          primary_color?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_name?: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          merchant_id?: string
+          primary_color?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_settings_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: true
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number

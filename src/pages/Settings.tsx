@@ -1,34 +1,125 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Upload, Save } from "lucide-react";
+import { Upload, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 
 export default function Settings() {
   const { toast } = useToast();
+  const { settings, refreshSettings } = useSiteSettings();
   const [brandName, setBrandName] = useState("Glowtek Pay");
   const [primaryColor, setPrimaryColor] = useState("#4C1D95");
   const [logo, setLogo] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogo(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("*")
+        .eq("merchant_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error loading settings:", error);
+        return;
+      }
+
+      if (data) {
+        setBrandName(data.brand_name);
+        setPrimaryColor(data.primary_color);
+        setLogo(data.logo_url);
+      }
+    } catch (err) {
+      console.error("Failed to load settings:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Settings saved",
-      description: "Your site content has been updated successfully.",
-    });
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convert to base64 for preview and storage
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogo(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to save settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const settingsData = {
+        merchant_id: user.id,
+        brand_name: brandName,
+        primary_color: primaryColor,
+        logo_url: logo,
+      };
+
+      const { error } = await supabase
+        .from("site_settings")
+        .upsert(settingsData, { onConflict: "merchant_id" });
+
+      if (error) {
+        console.error("Error saving settings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save settings. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await refreshSettings();
+
+      toast({
+        title: "Settings saved",
+        description: "Your site content has been updated successfully.",
+      });
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -137,10 +228,11 @@ export default function Settings() {
       <div className="flex justify-end">
         <Button
           onClick={handleSave}
+          disabled={saving}
           className="bg-accent hover:bg-accent/90 text-accent-foreground gap-2"
         >
-          <Save className="w-4 h-4" />
-          Save Changes
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>
