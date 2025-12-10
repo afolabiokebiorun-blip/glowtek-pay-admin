@@ -20,6 +20,7 @@ interface VirtualAccountData {
 
 interface MerchantData {
   bvn: string | null;
+  phone: string | null;
   business_name: string;
   virtual_account_name: string | null;
 }
@@ -43,6 +44,7 @@ export default function VirtualAccount() {
   const [hasFlutterwaveConfig, setHasFlutterwaveConfig] = useState(false);
   const [merchant, setMerchant] = useState<MerchantData | null>(null);
   const [bvnInput, setBvnInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
   const [businessNameInput, setBusinessNameInput] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState("NGN");
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -71,13 +73,14 @@ export default function VirtualAccount() {
 
       const { data, error } = await supabase
         .from('merchants')
-        .select('bvn, business_name, virtual_account_name')
+        .select('bvn, phone, business_name, virtual_account_name')
         .eq('id', user.id)
         .single();
 
       if (error) throw error;
       if (data) {
         setMerchant(data);
+        setPhoneInput(data.phone || "");
         setBvnInput(data.bvn || "");
         setBusinessNameInput(data.virtual_account_name || data.business_name || "");
       }
@@ -86,12 +89,7 @@ export default function VirtualAccount() {
     }
   };
 
-  const saveBvn = async () => {
-    if (!bvnInput || bvnInput.trim().length !== 11) {
-      toast.error("Please enter a valid 11-digit BVN");
-      return;
-    }
-
+  const saveDetails = async () => {
     if (!businessNameInput || businessNameInput.trim().length < 3) {
       toast.error("Please enter a business name (at least 3 characters)");
       return;
@@ -107,19 +105,31 @@ export default function VirtualAccount() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const updateData: Record<string, string> = {
+        virtual_account_name: businessNameInput.trim()
+      };
+
+      // Only update BVN if provided and valid
+      if (bvnInput && bvnInput.trim().length === 11) {
+        updateData.bvn = bvnInput.trim();
+      }
+
+      // Only update phone if provided
+      if (phoneInput && phoneInput.trim().length >= 10) {
+        updateData.phone = phoneInput.trim();
+      }
+
       const { error } = await supabase
         .from('merchants')
-        .update({ 
-          bvn: bvnInput.trim(),
-          virtual_account_name: businessNameInput.trim()
-        })
+        .update(updateData)
         .eq('id', user.id);
 
       if (error) throw error;
 
       setMerchant({ 
         ...merchant!, 
-        bvn: bvnInput.trim(),
+        bvn: updateData.bvn || merchant?.bvn || null,
+        phone: updateData.phone || merchant?.phone || null,
         virtual_account_name: businessNameInput.trim()
       });
       toast.success("Details saved successfully!");
@@ -202,6 +212,12 @@ export default function VirtualAccount() {
     const currencyConfig = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency);
     if (currencyConfig?.requiresBvn && !merchant?.bvn) {
       toast.error("BVN is required for NGN accounts. Please save your BVN first.");
+      return;
+    }
+
+    // Phone is required for non-NGN accounts
+    if (!currencyConfig?.requiresBvn && !merchant?.phone) {
+      toast.error("Phone number is required for foreign currency accounts. Please save your phone number first.");
       return;
     }
 
@@ -288,17 +304,19 @@ export default function VirtualAccount() {
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
-      {/* BVN Setup Section (only show if no BVN and user wants NGN) */}
-      {!merchant?.bvn && (
+      {/* Setup Section - Show if missing BVN or phone */}
+      {(!merchant?.bvn || !merchant?.phone) && (
         <Card>
           <CardHeader>
-            <CardTitle>BVN Setup (Required for NGN accounts)</CardTitle>
-            <CardDescription>Enter your BVN to create Nigerian Naira virtual accounts</CardDescription>
+            <CardTitle>Account Setup</CardTitle>
+            <CardDescription>Complete your profile to create virtual accounts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-900">
-                <strong>Note:</strong> BVN is only required for NGN accounts. You can create USD, GBP, EUR, and other currency accounts without BVN.
+                <strong>Requirements:</strong>
+                <br />• BVN is required for NGN accounts
+                <br />• Phone number is required for foreign currency accounts (USD, GBP, EUR, etc.)
               </p>
             </div>
             
@@ -316,7 +334,20 @@ export default function VirtualAccount() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bvn">Bank Verification Number (BVN)</Label>
+                <Label htmlFor="phone">Phone Number {merchant?.phone && <span className="text-green-600">✓</span>}</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="e.g., 08012345678"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value.replace(/[^\d+]/g, '').slice(0, 15))}
+                  maxLength={15}
+                />
+                <p className="text-xs text-muted-foreground">Required for foreign currency accounts</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bvn">BVN (11 digits) {merchant?.bvn && <span className="text-green-600">✓</span>}</Label>
                 <Input
                   id="bvn"
                   type="text"
@@ -325,12 +356,13 @@ export default function VirtualAccount() {
                   onChange={(e) => setBvnInput(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   maxLength={11}
                 />
+                <p className="text-xs text-muted-foreground">Required for NGN accounts</p>
               </div>
             </div>
 
             <Button 
-              onClick={saveBvn} 
-              disabled={savingBvn || bvnInput.length !== 11 || businessNameInput.trim().length < 3}
+              onClick={saveDetails} 
+              disabled={savingBvn || businessNameInput.trim().length < 3}
             >
               {savingBvn ? (
                 <>
@@ -338,7 +370,7 @@ export default function VirtualAccount() {
                   Saving...
                 </>
               ) : (
-                "Save BVN"
+                "Save Details"
               )}
             </Button>
           </CardContent>
