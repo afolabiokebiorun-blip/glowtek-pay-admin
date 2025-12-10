@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Flutterwave supported currencies for virtual accounts
+const SUPPORTED_CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'KES', 'GHS', 'ZAR'];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,6 +32,19 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // Parse request body for currency
+    let currency = 'NGN';
+    try {
+      const body = await req.json();
+      if (body.currency && SUPPORTED_CURRENCIES.includes(body.currency)) {
+        currency = body.currency;
+      }
+    } catch {
+      // Default to NGN if no body or invalid JSON
+    }
+
+    console.log(`Creating virtual account with currency: ${currency}`);
+
     // Get merchant details
     const { data: merchant, error: merchantError } = await supabase
       .from('merchants')
@@ -40,11 +56,12 @@ serve(async (req) => {
       throw new Error('Merchant not found');
     }
 
-    // Check if virtual account already exists
+    // Check if virtual account already exists for this currency
     const { data: existingAccount } = await supabase
       .from('virtual_accounts')
       .select('*')
       .eq('merchant_id', user.id)
+      .eq('currency', currency)
       .maybeSingle();
 
     if (existingAccount) {
@@ -52,7 +69,7 @@ serve(async (req) => {
         JSON.stringify({
           status: 'success',
           data: existingAccount,
-          message: 'Virtual account already exists',
+          message: `Virtual account for ${currency} already exists`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -76,28 +93,51 @@ serve(async (req) => {
       throw new Error('Flutterwave secret key not found');
     }
 
-    // Check if merchant has BVN
-    if (!merchant.bvn || merchant.bvn.trim() === '') {
-      throw new Error('BVN is required to create a virtual account. Please update your profile with your BVN first.');
+    // BVN is required for NGN accounts
+    if (currency === 'NGN' && (!merchant.bvn || merchant.bvn.trim() === '')) {
+      throw new Error('BVN is required to create a NGN virtual account. Please update your profile with your BVN first.');
     }
 
-    // Get the business name to use (custom name or default business_name)
+    // Get the business name to use
     const accountName = merchant.virtual_account_name?.trim() || merchant.business_name;
 
-    // Create Virtual Account directly
-    const virtualAccountResponse = await fetch('https://api.flutterwave.com/v3/virtual-account-numbers', {
+    // Build request body based on currency
+    const requestBody: Record<string, any> = {
+      email: merchant.email,
+      is_permanent: true,
+      tx_ref: `va_${user.id}_${currency}_${Date.now()}`,
+      narration: accountName,
+    };
+
+    // Add BVN only for NGN accounts
+    if (currency === 'NGN') {
+      requestBody.bvn = merchant.bvn;
+    }
+
+    // For non-NGN currencies, use different endpoint or add currency
+    let apiUrl = 'https://api.flutterwave.com/v3/virtual-account-numbers';
+    
+    // For foreign currency accounts, use the payout subaccounts endpoint
+    if (currency !== 'NGN') {
+      apiUrl = 'https://api.flutterwave.com/v3/payout-subaccounts';
+      requestBody.country = getCurrencyCountry(currency);
+      requestBody.account_name = accountName;
+      requestBody.mobilenumber = merchant.email; // Use email as identifier
+      delete requestBody.narration;
+      delete requestBody.is_permanent;
+      delete requestBody.tx_ref;
+    }
+
+    console.log(`Calling Flutterwave API: ${apiUrl}`);
+    console.log('Request body:', JSON.stringify(requestBody));
+
+    const virtualAccountResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${flwSecretKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        email: merchant.email,
-        is_permanent: true,
-        bvn: merchant.bvn,
-        tx_ref: `va_${user.id}_${Date.now()}`,
-        narration: accountName,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!virtualAccountResponse.ok) {
@@ -115,15 +155,35 @@ serve(async (req) => {
 
     const vaData = virtualAccountData.data;
 
+    // Parse response based on account type
+    let accountNumber: string;
+    let bankName: string;
+    let accountNameResult: string;
+    let orderRef: string;
+
+    if (currency === 'NGN') {
+      accountNumber = vaData.account_number;
+      bankName = vaData.bank_name;
+      accountNameResult = vaData.note || accountName;
+      orderRef = vaData.order_ref || vaData.flw_ref;
+    } else {
+      // For payout subaccounts (foreign currency)
+      accountNumber = vaData.account_number || vaData.nuban || vaData.account_reference;
+      bankName = vaData.bank_name || `${currency} Virtual Account`;
+      accountNameResult = vaData.account_name || accountName;
+      orderRef = vaData.id?.toString() || vaData.account_reference;
+    }
+
     // Save to database
     const { data: virtualAccount, error: insertError } = await supabase
       .from('virtual_accounts')
       .insert({
         merchant_id: user.id,
-        account_number: vaData.account_number,
-        bank_name: vaData.bank_name,
-        account_name: vaData.note || accountName,
-        order_ref: vaData.order_ref || vaData.flw_ref,
+        account_number: accountNumber,
+        bank_name: bankName,
+        account_name: accountNameResult,
+        order_ref: orderRef,
+        currency: currency,
       })
       .select()
       .single();
@@ -137,7 +197,7 @@ serve(async (req) => {
       JSON.stringify({
         status: 'success',
         data: virtualAccount,
-        message: 'Virtual account created successfully',
+        message: `${currency} virtual account created successfully`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -150,3 +210,15 @@ serve(async (req) => {
     );
   }
 });
+
+function getCurrencyCountry(currency: string): string {
+  const currencyCountryMap: Record<string, string> = {
+    'USD': 'US',
+    'GBP': 'GB',
+    'EUR': 'EU',
+    'KES': 'KE',
+    'GHS': 'GH',
+    'ZAR': 'ZA',
+  };
+  return currencyCountryMap[currency] || 'NG';
+}

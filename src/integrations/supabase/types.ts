@@ -336,6 +336,7 @@ export type Database = {
           account_number: string
           bank_name: string
           created_at: string | null
+          currency: string
           flw_customer_id: string | null
           id: string
           merchant_id: string
@@ -346,6 +347,7 @@ export type Database = {
           account_number: string
           bank_name: string
           created_at?: string | null
+          currency?: string
           flw_customer_id?: string | null
           id?: string
           merchant_id: string
@@ -356,6 +358,7 @@ export type Database = {
           account_number?: string
           bank_name?: string
           created_at?: string | null
+          currency?: string
           flw_customer_id?: string | null
           id?: string
           merchant_id?: string
