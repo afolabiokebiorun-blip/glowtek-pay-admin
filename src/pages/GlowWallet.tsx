@@ -17,6 +17,22 @@ interface WalletStats {
   payoutCount: number;
 }
 
+interface CurrencyBalance {
+  currency: string;
+  balance: number;
+  flag: string;
+}
+
+const CURRENCY_FLAGS: Record<string, string> = {
+  'NGN': '🇳🇬',
+  'USD': '🇺🇸',
+  'GBP': '🇬🇧',
+  'EUR': '🇪🇺',
+  'KES': '🇰🇪',
+  'GHS': '🇬🇭',
+  'ZAR': '🇿🇦',
+};
+
 export default function GlowWallet() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -29,6 +45,7 @@ export default function GlowWallet() {
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalance[]>([]);
   const [topupAmount, setTopupAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [topupOpen, setTopupOpen] = useState(false);
@@ -86,6 +103,23 @@ export default function GlowWallet() {
           transactionCount,
           payoutCount,
         });
+
+        // Fetch virtual accounts to show currency balances
+        const { data: virtualAccounts } = await supabase
+          .from('virtual_accounts')
+          .select('currency')
+          .eq('merchant_id', session.user.id);
+
+        if (virtualAccounts && virtualAccounts.length > 0) {
+          // For now, show the main wallet balance as NGN and placeholder for others
+          // In production, you'd track balances per currency
+          const balances: CurrencyBalance[] = virtualAccounts.map(va => ({
+            currency: va.currency,
+            balance: va.currency === 'NGN' ? availableBalance : 0,
+            flag: CURRENCY_FLAGS[va.currency] || '🌍'
+          }));
+          setCurrencyBalances(balances);
+        }
 
         // Set recent activity from ledger entries
         const recentEntries = ledgerEntries.slice(0, 10).map(entry => ({
@@ -379,6 +413,41 @@ export default function GlowWallet() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Currency Balances */}
+      {currencyBalances.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Currency Balances
+            </CardTitle>
+            <CardDescription>Balances across your virtual accounts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {currencyBalances.map((cb) => (
+                <div 
+                  key={cb.currency} 
+                  className="p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">{cb.flag}</span>
+                    <span className="font-semibold">{cb.currency}</span>
+                  </div>
+                  <p className="text-xl font-bold">
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: cb.currency,
+                      minimumFractionDigits: 2,
+                    }).format(cb.balance / 100)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Activity */}
       <Card>

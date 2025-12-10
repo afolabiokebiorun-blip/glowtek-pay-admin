@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Copy, Loader2, AlertCircle, Plus } from "lucide-react";
+import { Copy, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 
 interface VirtualAccountData {
   id: string;
@@ -39,6 +40,7 @@ export default function VirtualAccount() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [savingBvn, setSavingBvn] = useState(false);
   const [virtualAccounts, setVirtualAccounts] = useState<VirtualAccountData[]>([]);
   const [hasFlutterwaveConfig, setHasFlutterwaveConfig] = useState(false);
@@ -259,6 +261,29 @@ export default function VirtualAccount() {
     toast.success(`${label} copied to clipboard`);
   };
 
+  const deleteVirtualAccount = async (accountId: string, currency: string) => {
+    setDeleting(accountId);
+    try {
+      const { data, error } = await supabase.functions.invoke('virtual-account-delete', {
+        body: { accountId }
+      });
+
+      if (error) throw error;
+
+      if (data.status === 'success') {
+        setVirtualAccounts(prev => prev.filter(a => a.id !== accountId));
+        toast.success(`${currency} account deleted successfully`);
+      } else {
+        throw new Error(data.error || "Failed to delete account");
+      }
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error(error.message || "Failed to delete virtual account");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const getCurrencyInfo = (code: string) => {
     return SUPPORTED_CURRENCIES.find(c => c.code === code);
   };
@@ -401,10 +426,46 @@ export default function VirtualAccount() {
               const currencyInfo = getCurrencyInfo(account.currency);
               return (
                 <div key={account.id} className="p-4 bg-muted rounded-lg space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl">{currencyInfo?.flag}</span>
-                    <span className="font-semibold text-lg">{account.currency}</span>
-                    <span className="text-muted-foreground text-sm">- {currencyInfo?.name}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{currencyInfo?.flag}</span>
+                      <span className="font-semibold text-lg">{account.currency}</span>
+                      <span className="text-muted-foreground text-sm">- {currencyInfo?.name}</span>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={deleting === account.id}
+                        >
+                          {deleting === account.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete {account.currency} Account?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will remove your {account.currency} virtual account ({account.account_number}). 
+                            You can create a new one later, but you'll get a different account number.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => deleteVirtualAccount(account.id, account.currency)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   
                   <div className="grid gap-3 md:grid-cols-3">
